@@ -180,7 +180,7 @@ SECRET_KEY = 'your-secret-key'   # Change this in production
 
 ---
 
-## 🙈 .gitignore Recommendations
+## .gitignore Recommendations
 
 Add these to your `.gitignore`:
 
@@ -193,3 +193,10 @@ __pycache__/
 *.pyc
 users.json
 ```
+
+
+<img width="1440" height="779" alt="Screenshot 2026-05-03 at 5 17 51 PM" src="https://github.com/user-attachments/assets/b0858f6e-dde6-4653-a8f9-18b3a0698cee" />
+
+<img width="661" height="656" alt="Screenshot 2026-05-03 at 5 18 18 PM" src="https://github.com/user-attachments/assets/39e91ce5-7378-41e0-9c5f-58628fe3c30c" />
+
+<img width="335" height="606" alt="Screenshot 2026-05-03 at 5 16 55 PM" src="https://github.com/user-attachments/assets/63cb30ad-38c5-4f8b-9d6c-f0489b5435fc" />
