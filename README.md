@@ -1,18 +1,70 @@
 # 🛍️ SmartMLShop — AI-Powered Retail Management System
 
-A full-stack retail management web application built with **Flask** and **Machine Learning**, featuring real-time sales forecasting, inventory optimization, profit prediction, and role-based dashboards for managers and employees.
+A full-stack retail management web application built with **Flask** and **Machine Learning**, featuring real-time sales forecasting, inventory optimisation, profit prediction, and role-based dashboards for managers and employees.
+
+---
+
+## 📌 Overview
+
+Most ML-based retail forecasting systems predict demand, sales, and profit independently using the same input features. SmartMLShop instead implements a **multi-stage causal pipeline** that mirrors how retail actually works: demand drives sales, and sales drives profit. Each stage's prediction becomes an input feature for the next, producing significantly higher accuracy at the sales and profit stages than independent multi-output regression would achieve.
+
+---
+
+## 👩‍💻 My Contributions
+
+This was a team project. My specific contributions:
+
+- **Designed the multi-stage causal prediction pipeline** — the core architectural decision that differentiates this system. Rather than predicting demand, sales, and profit independently, I chained the three models so that demand predictions feed into the sales model and sales predictions feed into the profit model. This reflects the actual causal structure of retail operations and is why sales R²=0.9823 and profit R²=0.9948 despite demand only achieving R²=0.6273.
+- **Conducted the full model comparison** — systematically trained and evaluated 6 regression algorithms (Gradient Boosting, Random Forest, XGBoost, LightGBM, Linear Regression, SVR) under identical preprocessing and evaluation conditions, then selected Gradient Boosting based on generalisation performance rather than training accuracy.
+- **Ran GridSearchCV hyperparameter tuning** — exhaustive search across estimator count, tree depth, min samples split, and min leaf size with 5-fold cross-validation to arrive at the final configuration (150 estimators, depth 8, min split 5, min leaf 2).
 
 ---
 
 ## ✨ Features
 
-- **Sales Forecasting** — Random Forest models predict future revenue based on historical trends, seasonality, and demand patterns
-- **Demand Forecasting** — Time-series style daily demand predictions with lag features and rolling averages
-- **Profit Optimization** — ML-driven profit prediction using cost structure and margin context
+- **Sales Forecasting** — Gradient Boosting models predict future revenue based on historical trends, seasonality, and demand patterns
+- **Demand Forecasting** — Daily demand predictions with lag features, rolling averages, and event-driven spikes
+- **Profit Optimisation** — ML-driven profit prediction using cost structure and margin context
 - **Inventory Intelligence** — Reorder point calculations, safety stock recommendations, and stock status alerts
 - **Role-Based Dashboards** — Separate views for managers (store-wide analytics) and employees (personal performance)
-- **Product Management** — Per-product analysis with historical and forecast charts
 - **Demo Mode** — Fully functional without trained models using deterministic synthetic data
+
+---
+
+## 🤖 ML Pipeline
+
+Three Gradient Boosting regressors trained in sequence:
+
+**Stage 1 — Demand Model**
+Input: time-based features, lag features (lag_1_day, lag_7_day, rolling_7_day_avg), trend index, event spikes
+Output: daily unit demand prediction
+
+**Stage 2 — Sales Model**
+Input: all Stage 1 features + `demand_pred` (propagated from Stage 1)
+Output: daily revenue prediction
+
+**Stage 3 — Profit Model**
+Input: all Stage 2 features + `sales_pred` + cost + margin_hint
+Output: daily profit prediction
+
+### Final Model Performance
+
+| Stage  | Target          | R² Score |
+| ------ | --------------- | -------- |
+| Demand | Daily units     | 0.6273   |
+| Sales  | Daily revenue   | 0.9823   |
+| Profit | Daily profit    | 0.9948   |
+
+### Model Comparison (Demand R² — hardest target)
+
+| Model             | Demand R² | Notes                              |
+| ----------------- | --------- | ---------------------------------- |
+| Gradient Boosting | **0.6273**| Best generalisation — selected     |
+| Linear Regression | 0.5765    | Limited nonlinear capacity         |
+| Random Forest     | 0.5494    | Overfitting observed               |
+| LightGBM          | 0.5365    | Strong but slightly weaker on demand |
+| XGBoost           | 0.5320    | Competitive, requires careful tuning |
+| SVR               | -1.5614   | Poor on structured retail data     |
 
 ---
 
@@ -21,7 +73,7 @@ A full-stack retail management web application built with **Flask** and **Machin
 | Layer    | Technology                                          |
 | -------- | --------------------------------------------------- |
 | Backend  | Python 3, Flask, Flask-SQLAlchemy, Flask-CORS       |
-| ML       | scikit-learn (Random Forest), pandas, NumPy, joblib |
+| ML       | scikit-learn (Gradient Boosting), pandas, NumPy, joblib |
 | Database | SQLite                                              |
 | Frontend | HTML5, Bootstrap 5, Chart.js, Font Awesome          |
 | Auth     | Session-based with SHA-256 hashed passwords         |
@@ -32,38 +84,29 @@ A full-stack retail management web application built with **Flask** and **Machin
 
 ```
 smartmlshop/
-├── app/                        # Flask application package
+├── app/
 │   ├── app.py                  # App factory
 │   ├── auth.py                 # Authentication blueprint
 │   ├── routes.py               # Route handlers & API endpoints
 │   ├── models.py               # SQLAlchemy models
 │   ├── demo_data.py            # Demo data seeding
 │   ├── generate_data.py        # Training data CSV generator
-│   ├── static/
-│   │   ├── css/styles.css
-│   │   └── js/scripts.js
 │   └── templates/
-│       ├── base.html
-│       ├── index.html
-│       ├── login.html
 │       ├── manager_dashboard.html
 │       ├── employee_dashboard.html
 │       └── product_management.html
-├── src/                        # ML pipeline
+├── src/
 │   ├── preprocessing.py        # Feature engineering & data prep
-│   ├── forecast_engine.py      # Time-series forecast logic
-│   ├── insights.py             # Demand trend & inventory intelligence
-│   ├── predict.py              # Inference helpers
+│   ├── forecast_engine.py      # Multi-stage forecast logic
 │   ├── train_model.py          # Model training orchestration
-│   └── demo_synthetic.py       # Synthetic forecasting (no-model fallback)
+│   └── demo_synthetic.py       # Synthetic forecasting fallback
 ├── scripts/
 │   └── train.py                # Training entry point
 ├── data/
-│   └── raw/shop_data.csv       # Generated training data
+│   └── raw/shop_data.csv
 ├── models/                     # Saved .pkl model files (git-ignored)
-├── instance/                   # SQLite DB (git-ignored)
-├── config.py                   # Central configuration
-├── run.py                      # App entry point
+├── config.py
+├── run.py
 └── requirements.txt
 ```
 
@@ -71,47 +114,27 @@ smartmlshop/
 
 ## 🚀 Getting Started
 
-### Prerequisites
-
-- Python 3.9+
-- pip
-
-### Installation
-
 ```bash
-# 1. Clone the repository
-git clone https://github.com/your-username/smartmlshop.git
-cd smartmlshop
+git clone https://github.com/taneesha-beep/Smart-Shop-Manager.git
+cd Smart-Shop-Manager
 
-# 2. Create and activate virtual environment
 python3 -m venv venv
-source venv/bin/activate        # macOS/Linux
-venv\Scripts\activate           # Windows
+source venv/bin/activate
 
-# 3. Install dependencies
 pip install -r requirements.txt
-```
 
-### Generate Training Data & Train Models
-
-```bash
-# Generate the CSV dataset
+# Generate data and train models
 python3 app/generate_data.py
 mv shop_data.csv data/raw/shop_data.csv
-
-# Train ML models (saves .pkl files to models/)
 PYTHONPATH=. python3 scripts/train.py
-```
 
-> **Skip this step** if you just want to run the app — it works without trained models using the built-in synthetic demo engine.
-
-### Run the App
-
-```bash
+# Run the app
 PYTHONPATH=. python3 run.py
 ```
 
-Open **http://localhost:5001** in your browser.
+Open **http://localhost:5001**
+
+> Skip the training step to run in demo mode with synthetic data.
 
 ---
 
@@ -121,82 +144,3 @@ Open **http://localhost:5001** in your browser.
 | -------- | --------- | ------------ |
 | Manager  | `manager` | `manager123` |
 | Employee | `alice`   | `emp123`     |
-| Employee | `bob`     | `emp123`     |
-| Employee | `carol`   | `emp123`     |
-| Employee | `david`   | `emp123`     |
-| Employee | `emma`    | `emp123`     |
-
----
-
-## 🤖 ML Models
-
-Three Random Forest regressors are trained in sequence:
-
-1. **Demand Model** — Trained on daily store-level time-series with lag and rolling features; uses a time-based train/test split to avoid data leakage
-2. **Sales Model** — Trained on `[unit_price, category, demand_pred, trend]`; demand predictions from model 1 are chained as input features
-3. **Profit Model** — Trained on `[sales_pred, cost, margin_hint, ...]`; uses sales predictions from model 2 plus cost structure features
-
-### Model Performance (typical)
-
-| Model  | MAE       | R²    |
-| ------ | --------- | ----- |
-| Demand | ~15 units | ~0.91 |
-| Sales  | ~$120     | ~0.88 |
-| Profit | ~$45      | ~0.86 |
-
----
-
-## 📊 Dashboards
-
-**Manager Dashboard**
-
-- Today's revenue, profit, transaction count, and average order value
-- 30-day daily sales trend chart
-- Category sales distribution (pie chart)
-- Top 10 products by revenue
-
-**Employee Dashboard**
-
-- Personal sales performance and ranking
-- Individual transaction history
-
-**Product Management**
-
-- Select any product to view 30-day historical demand, sales, and profit charts
-- 30-day demand and sales forecast
-- Inventory status with reorder recommendations
-
----
-
-## ⚙️ Configuration
-
-All settings are in `config.py`:
-
-```python
-PORT = 5001
-DEBUG = True
-SECRET_KEY = 'your-secret-key'   # Change this in production
-```
-
----
-
-## .gitignore Recommendations
-
-Add these to your `.gitignore`:
-
-```
-venv/
-instance/
-models/*.pkl
-data/raw/
-__pycache__/
-*.pyc
-users.json
-```
-
-
-<img width="1440" height="779" alt="Screenshot 2026-05-03 at 5 17 51 PM" src="https://github.com/user-attachments/assets/b0858f6e-dde6-4653-a8f9-18b3a0698cee" />
-
-<img width="661" height="656" alt="Screenshot 2026-05-03 at 5 18 18 PM" src="https://github.com/user-attachments/assets/39e91ce5-7378-41e0-9c5f-58628fe3c30c" />
-
-<img width="335" height="606" alt="Screenshot 2026-05-03 at 5 16 55 PM" src="https://github.com/user-attachments/assets/63cb30ad-38c5-4f8b-9d6c-f0489b5435fc" />
